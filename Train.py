@@ -15,13 +15,19 @@ parser.add_argument('--model_save_dir', type=str)
 parser.add_argument('--img_h', type=int, default=256)
 parser.add_argument('--img_w', type=int, default=256)
 parser.add_argument('--batch_size', type=int, default=128)
+
+parser.add_argument('--bilinear_interpolation', type=bool, default=True)
+parser.add_argument('--gaussian_blur', type=bool, default=True)
+parser.add_argument('--salt_and_pepper_noise', type=bool, default=True)
+parser.add_argument('--random_crop', type=bool, default=True)
+parser.add_argument('--random_erasing', type=bool, default=True)
+
 args = parser.parse_args()
 
 image_dir = args.dataset_dir
 
 data_transform = transforms.Compose([
     transforms.Resize((args.img_h, args.img_w)),
-    transforms.RandomHorizontalFlip(), 
     transforms.ToTensor(), # range [0, 255] -> [0.0,1.0]
     transforms.Normalize(mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225])
     ])
@@ -90,7 +96,7 @@ def train_model(model, optimizer, scheduler, num_epochs):
 
 		print ('Epoch:{d} Loss: {:.4f} Acc: {:.4f}'.format(epoch, epoch_loss, epoch_acc))
 
-		if (epoch + 1) % 10 == 0:
+		if (epoch + 1) % 20 == 0:
             save_network(model, epoch)
 
     save_network(model, 'last')
