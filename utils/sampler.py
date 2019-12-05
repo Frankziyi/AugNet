@@ -9,7 +9,7 @@ from torch.utils.data.sampler import (
 
 
 class RandomIdentitySampler(Sampler):
-    def __init__(self, data_source, num_instances=4):
+    def __init__(self, data_source, num_instances=1):
         self.data_source = data_source
         self.num_instances = num_instances
         self.index_dic = defaultdict(list)
