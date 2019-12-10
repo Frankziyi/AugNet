@@ -72,8 +72,9 @@ class ft_net(nn.Module):
         x = self.model.layer4(x)
         x = self.model.avgpool(x)
         x = torch.squeeze(x)
+        feature = x
         x = self.classifier(x)
-        return x
+        return feature, x
 
 # Define the DenseNet121-based Model
 class ft_net_dense(nn.Module):

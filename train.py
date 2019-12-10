@@ -12,6 +12,7 @@ import torchvision.models as models
 from utils.sampler import RandomIdentitySampler,RandomSampler
 from utils.resnet import resnet50
 from utils.model import ft_net
+from utils.utils import set_seed
 from torch.nn.parallel import DataParallel
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
@@ -27,6 +28,8 @@ parser.add_argument('--img_w', type=int, default=128)
 parser.add_argument('--batch_size', type=int, default=128)
 
 parser.add_argument('--bilinear_interpolation', type=bool, default=True)
+parser.add_argument('--img_bi_h', type=int, default=512)
+parser.add_argument('--img_bi_w', type=int, default=256)
 parser.add_argument('--gaussian_blur', type=bool, default=True)
 parser.add_argument('--salt_and_pepper_noise', type=bool, default=True)
 parser.add_argument('--random_crop', type=bool, default=True)
@@ -43,21 +46,14 @@ data_transform = transforms.Compose([
     transforms.Normalize(mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225])
     ])
 
-#image_datasetr = {x: datasets.ImageFolder(os.path.join(image_dir, x),data_transform[x])
-#                  for x in ['train', 'val']}
-
 image_datasets = {}
 
 image_datasets['train'] = datasets.ImageFolder(os.path.join(image_dir), data_transform)
 
 dataloaders = torch.utils.data.DataLoader(image_datasets['train'], batch_size=args.batch_size,
-                                            shuffle=True,#sampler=RandomSampler,
-                                            num_workers=4)
-dataset_sizes = len(image_datasets['train'])
+                                            shuffle=True, num_workers=4)
 
-#model = models.resnet50(pretrained=True)
-#fc_features = model.fc.in_features
-#model.fc = nn.Linear(fc_features, 751)
+dataset_sizes = len(image_datasets['train'])
 
 model = ft_net(751)
 
@@ -84,12 +80,6 @@ def train_model(model, optimizer, scheduler, num_epochs):
     scheduler.step()
     model.train()
     
-    #pretrained_dict = pretrained_model.state_dict()
-    #model_dict = model.state_dict()
-    #pretrained_dict =  {k: v for k, v in pretrained_dict.items() if k in model_dict}
-    #model_dict.update(pretrained_dict)
-    #model.load_state_dict(model_dict)
-
     for epoch in range(num_epochs):
         print ('Now {} epochs, total {} epochs'.format(epoch, num_epochs))
         print ('*' * 20)
@@ -102,7 +92,7 @@ def train_model(model, optimizer, scheduler, num_epochs):
             inputs = Variable(inputs.float()).cuda()
             labels = Variable(labels).cuda()
             optimizer.zero_grad()
-            outputs = model(inputs)
+            features, outputs = model(inputs)
             pred = torch.argmax(outputs, dim=1)
             loss = loss_function(outputs, labels)
             loss.backward()
