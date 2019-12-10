@@ -14,7 +14,7 @@ from utils.resnet import resnet50
 from utils.model import ft_net
 from torch.nn.parallel import DataParallel
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "3,7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
 
 parser = argparse.ArgumentParser()
 
@@ -43,7 +43,7 @@ data_transform = transforms.Compose([
     transforms.Normalize(mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225])
     ])
 
-#image_datasets = {x: datasets.ImageFolder(os.path.join(image_dir, x),data_transform[x])
+#image_datasetr = {x: datasets.ImageFolder(os.path.join(image_dir, x),data_transform[x])
 #                  for x in ['train', 'val']}
 
 image_datasets = {}
@@ -60,7 +60,6 @@ dataset_sizes = len(image_datasets['train'])
 #model.fc = nn.Linear(fc_features, 751)
 
 model = ft_net(751)
-base_parameters = model.parameters()
 
 optimizer_ft = optim.SGD(model.parameters(), lr = 0.01, momentum=0.9, weight_decay=5e-4)
 
@@ -110,7 +109,7 @@ def train_model(model, optimizer, scheduler, num_epochs):
             optimizer.step()
             running_loss += loss.data.item()
             running_corrects += torch.sum(pred.data == labels.data).item()
-            #pdb.set_trace()
+            pdb.set_trace()
 
         epoch_loss = running_loss / len(dataloaders)
         epoch_acc = running_corrects * 1.0 / float(dataset_sizes)
