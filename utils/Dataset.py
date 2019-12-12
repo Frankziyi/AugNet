@@ -73,8 +73,9 @@ def default_loader(path):
         return pil_loader(path)
 
 class Dataset(data.Dataset):
-    def __init__(self, image_dir, transform=None, CAM=False):
+    def __init__(self, image_dir, transform=None, transform_resize=None, CAM=False):
         self.transform = transform
+        self.transform_resize = transform_resize
         classes, class_to_idx = find_classes(image_dir)
         self.data = make_dataset(image_dir, class_to_idx, IMG_EXTENSIONS, CAM)
         self.CAM = CAM
@@ -87,10 +88,15 @@ class Dataset(data.Dataset):
         img = default_loader(path)
         if self.transform is not None:
             img = self.transform(img)
+        if self.transform_resize is not None:
+            img_resize = self.transform_resize(img)
         if self.CAM:
             return img, pid, real_id, cam
         else:
-            return img, pid, real_id
+            if self.transform_resize is not None:
+                return img, img_resize, pid, real_id
+            else:
+                return img, pid, real_id
 
     def __len__(self):
         return len(self.data)
