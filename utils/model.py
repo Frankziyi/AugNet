@@ -76,6 +76,27 @@ class ft_net(nn.Module):
         x = self.classifier(x)
         return feature, x
 
+class ft_fcnet(nn.Module):
+
+    def __init__(self):
+        super(ft_fcnet, self).__init__()
+        model_ft = models.resnet50(pretrained=True)
+        model_ft.avpool = nn.AdaptiveAvgPool2d((1,1))
+        self.model = model_ft
+
+    def forward(self, x):
+        x = self.model.conv1(x)
+        x = self.model.bn1(x)
+        x = self.model.relu(x)
+        x = self.model.maxpool(x)
+        x = self.model.layer1(x)
+        x = self.model.layer2(x)
+        x = self.model.layer3(x)
+        x = self.model.layer4(x)
+        x = self.model.avgpool(x)
+        x = torch.squeeze(x)
+        return x
+
 # Define the DenseNet121-based Model
 class ft_net_dense(nn.Module):
 
