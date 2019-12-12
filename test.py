@@ -18,6 +18,7 @@ import scipy.io
 import pdb
 import yaml
 import math
+import pdb
 from utils.model import ft_net, ft_net_dense
 
 #fp16
@@ -156,7 +157,8 @@ def extract_feature(model,dataloaders):
                 if scale != 1:
                     # bicubic is only  available in pytorch>= 1.1
                     input_img = nn.functional.interpolate(input_img, scale_factor=scale, mode='bicubic', align_corners=False)
-                outputs = model(input_img) 
+                features_single, outputs = model(input_img)
+                #pdb.set_trace() 
                 ff += outputs
         # norm feature
         if opt.PCB:

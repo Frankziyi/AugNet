@@ -10,12 +10,12 @@ from torch.autograd import Variable
 from torchvision import datasets, transforms
 import torchvision.models as models
 from utils.sampler import RandomIdentitySampler,RandomSampler
-from utils.resnet import resnet50
+from utils.Dataset import Dataset
 from utils.model import ft_net
 from utils.utils import set_seed
 from torch.nn.parallel import DataParallel
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "6"
 
 parser = argparse.ArgumentParser()
 
@@ -48,10 +48,11 @@ data_transform = transforms.Compose([
 
 image_datasets = {}
 
-image_datasets['train'] = datasets.ImageFolder(os.path.join(image_dir), data_transform)
+#image_datasets['train'] = datasets.ImageFolder(os.path.join(image_dir), data_transform)
 
-dataloaders = torch.utils.data.DataLoader(image_datasets['train'], batch_size=args.batch_size,
-                                            shuffle=True, num_workers=4)
+image_datasets['train'] = Dataset(image_dir, data_transform)
+
+dataloaders = torch.utils.data.DataLoader(image_datasets['train'], batch_size=args.batch_size, shuffle=True, num_workers=4)
 
 dataset_sizes = len(image_datasets['train'])
 
@@ -88,18 +89,19 @@ def train_model(model, optimizer, scheduler, num_epochs):
         running_corrects = 0
 
         for data in dataloaders:
-            inputs, labels = data
+            inputs, labels, _ = data
             inputs = Variable(inputs.float()).cuda()
             labels = Variable(labels).cuda()
             optimizer.zero_grad()
             features, outputs = model(inputs)
+            pdb.set_trace()
             pred = torch.argmax(outputs, dim=1)
             loss = loss_function(outputs, labels)
             loss.backward()
             optimizer.step()
             running_loss += loss.data.item()
             running_corrects += torch.sum(pred.data == labels.data).item()
-            pdb.set_trace()
+            #pdb.set_trace()
 
         epoch_loss = running_loss / len(dataloaders)
         epoch_acc = running_corrects * 1.0 / float(dataset_sizes)
