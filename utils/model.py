@@ -83,6 +83,7 @@ class ft_fcnet(nn.Module):
         model_ft = models.resnet50(pretrained=True)
         model_ft.avpool = nn.AdaptiveAvgPool2d((1,1))
         self.model = model_ft
+        
 
     def forward(self, x):
         x = self.model.conv1(x)

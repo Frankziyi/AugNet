@@ -70,9 +70,11 @@ def save_network(network, epoch_label):
 
 def train_model(model, optimizer, scheduler, num_epochs):
 
+    save_network(model, 0)
+    '''
     scheduler.step()
     model.train()
-    
+
     for epoch in range(num_epochs):
         print ('Now {} epochs, total {} epochs'.format(epoch, num_epochs))
         print ('*' * 20)
@@ -105,5 +107,5 @@ def train_model(model, optimizer, scheduler, num_epochs):
             save_network(model, epoch)
 
     save_network(model, 'last')
-
+    '''
 model = train_model(model, optimizer_ft, exp_lr_scheduler, args.num_epochs)

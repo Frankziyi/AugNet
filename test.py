@@ -19,7 +19,7 @@ import pdb
 import yaml
 import math
 import pdb
-from utils.model import ft_net, ft_net_dense
+from utils.model import ft_net, ft_fcnet, ft_net_dense
 
 #fp16
 try:
@@ -145,7 +145,8 @@ def extract_feature(model,dataloaders):
         n, c, h, w = img.size()
         count += n
         print(count)
-        ff = torch.FloatTensor(n,512).zero_().cuda()
+        #ff = torch.FloatTensor(n,512).zero_().cuda()
+        ff = torch.FloatTensor(n,2048).zero_().cuda()
         if opt.PCB:
             ff = torch.FloatTensor(n,2048,6).zero_().cuda() # we have six parts
 
@@ -157,7 +158,8 @@ def extract_feature(model,dataloaders):
                 if scale != 1:
                     # bicubic is only  available in pytorch>= 1.1
                     input_img = nn.functional.interpolate(input_img, scale_factor=scale, mode='bicubic', align_corners=False)
-                features_single, outputs = model(input_img)
+                #features_single, outputs = model(input_img)
+                outputs = model(input_img)
                 #pdb.set_trace() 
                 ff += outputs
         # norm feature
@@ -206,7 +208,8 @@ print('-------test-----------')
 if opt.use_dense:
     model_structure = ft_net_dense(opt.nclasses)
 else:
-    model_structure = ft_net(opt.nclasses)
+    #model_structure = ft_net(opt.nclasses)
+    model_structure = ft_fcnet()
 
 if opt.PCB:
     model_structure = PCB(opt.nclasses)
@@ -216,6 +219,7 @@ if opt.PCB:
 
 model = load_network(model_structure)
 
+'''
 # Remove the final fc layer and classifier layer
 if opt.PCB:
     #if opt.fp16:
@@ -228,7 +232,7 @@ else:
         #model[1].classifier = nn.Sequential()
     #else:
         model.classifier.classifier = nn.Sequential()
-
+'''
 # Change to test mode
 model = model.eval()
 if use_gpu:

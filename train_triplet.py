@@ -10,12 +10,12 @@ from torch.autograd import Variable
 from torchvision import datasets, transforms
 import torchvision.models as models
 from utils.sampler import RandomIdentitySampler,RandomSampler
-from utils.Dataset import Dataset
-from utils.model import ft_fcnet
+from utils.Dataset import Dataset, DatasetTriplet
+from utils.model import ft_net, ft_fcnet
 from utils.utils import set_seed
 from torch.nn.parallel import DataParallel
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6,7"
 
 parser = argparse.ArgumentParser()
 
@@ -25,15 +25,9 @@ parser.add_argument('--lr_decay_epochs', type=int, default=40)
 parser.add_argument('--model_save_dir', type=str)
 parser.add_argument('--img_h', type=int, default=256)
 parser.add_argument('--img_w', type=int, default=128)
-parser.add_argument('--batch_size', type=int, default=32)
-
-parser.add_argument('--bilinear_interpolation', type=bool, default=True)
 parser.add_argument('--img_bi_h', type=int, default=512)
 parser.add_argument('--img_bi_w', type=int, default=256)
-parser.add_argument('--gaussian_blur', type=bool, default=True)
-parser.add_argument('--salt_and_pepper_noise', type=bool, default=True)
-parser.add_argument('--random_crop', type=bool, default=True)
-parser.add_argument('--random_erasing', type=bool, default=True)
+parser.add_argument('--batch_size', type=int, default=128)
 
 args = parser.parse_args()
 
@@ -41,44 +35,35 @@ image_dir = args.dataset_dir
 
 data_transform = transforms.Compose([
     transforms.Resize((args.img_h, args.img_w)),
-    #transforms.RandomHorizontalFlip(),
     transforms.ToTensor(), # range [0, 255] -> [0.0,1.0]
     transforms.Normalize(mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225])
     ])
 
-data_transform_resize = transforms.Compose([
+data_transform2 = transforms.Compose([
     transforms.Resize((args.img_bi_h, args.img_bi_w)),
-    #transforms.RandomHorizontalFlip(),
     transforms.ToTensor(), # range [0, 255] -> [0.0,1.0]
     transforms.Normalize(mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225])
     ])
 
 image_datasets = {}
 
-#image_datasets['train'] = datasets.ImageFolder(os.path.join(image_dir), data_transform)
+image_datasets['train'] = DatasetTriplet(os.path.join(image_dir), data_transform)
 
-image_datasets['train'] = Dataset(image_dir, data_transform, data_transform_resize)
-
-dataloaders = torch.utils.data.DataLoader(image_datasets['train'], batch_size=args.batch_size, shuffle=True, num_workers=4)
+dataloaders = torch.utils.data.DataLoader(image_datasets['train'], batch_size=args.batch_size, shuffle=True, num_workers=8)
 
 dataset_sizes = len(image_datasets['train'])
 
+triplet_loss = nn.TripletMarginLoss(margin=0.3, p=2)
+
 model = ft_fcnet()
-model2 = ft_fcnet()
 
 optimizer_ft = optim.SGD(model.parameters(), lr = 0.01, momentum=0.9, weight_decay=5e-4)
 
 exp_lr_scheduler = optim.lr_scheduler.StepLR(optimizer_ft, step_size=args.lr_decay_epochs, gamma=0.1)
 
-optimizer_ft2 = optim.SGD(model2.parameters(), lr = 0.01, momentum = 0.9, weight_decay = 5e-4)
-
-exp_lr_scheduler2 = optim.lr_scheduler.StepLR(optimizer_ft2, step_size=args.lr_decay_epochs, gamma=0.1)
-
-
 model = DataParallel(model)
-model2 = DataParallel(model2)
 model = model.cuda()
-model2 = model2.cuda()
+
 
 def save_network(network, epoch_label):
     save_filename = 'net_%s.pth'% epoch_label
@@ -87,17 +72,12 @@ def save_network(network, epoch_label):
         os.mkdir(args.model_save_dir)
     torch.save(network.state_dict(), save_path)
 
-#def EuclideanDistance(outputs_normal, outputs_resize):
 
-
-
-def train_model(model, optimizer, scheduler, optimizer2, scheduler2, num_epochs):
-
-    scheduler.step()
-    scheduler2.step()
-    model.train()
-    model2.train()
+def train_model(model, optimizer, scheduler, num_epochs):
     
+    scheduler.step()
+    model.train()
+
     for epoch in range(num_epochs):
         print ('Now {} epochs, total {} epochs'.format(epoch, num_epochs))
         print ('*' * 20)
@@ -106,30 +86,30 @@ def train_model(model, optimizer, scheduler, optimizer2, scheduler2, num_epochs)
         running_corrects = 0
 
         for data in dataloaders:
-            inputs, inputs_resize, _, _ = data
-            inputs = Variable(inputs.float()).cuda()
-            inputs_resize = Variable(inputs_resize.float()).cuda()
+            anchors, positives, negatives = data
+            anchors = Variable(anchors.float()).cuda()
+            positives = Variable(positives.float()).cuda()
+            negatives = Variable(negatives.float()).cuda()
             optimizer.zero_grad()
-            optimizer2.zero_grad()
-            outputs = model(inputs)
-            outputs_resize = model2(inputs_resize)
-            #loss compute
-            loss = torch.dist(outputs, outputs_resize, p=2)
+            features = model(anchors)
+            features_pos = model(positives)
+            features_neg = model(negatives)
+            #loss = torch.dist(features, features_resize) - 0.0001 * torch.dist(features, features_neg, p=2)
             #pdb.set_trace()
+            loss = triplet_loss(features, features_pos, features_neg)
             loss.backward()
             optimizer.step()
-            optimizer2.step()
             running_loss += loss.data.item()
             #pdb.set_trace()
 
         epoch_loss = running_loss / len(dataloaders)
+        epoch_acc = running_corrects * 1.0 / float(dataset_sizes)
         #pdb.set_trace()
 	print ('Epoch:{:d} Loss: {:.4f}'.format(epoch, epoch_loss))
-        #save_network(model, 'test')
 
 	if (epoch + 1) % 20 == 0:
             save_network(model, epoch)
 
     save_network(model, 'last')
-
-model = train_model(model, optimizer_ft, exp_lr_scheduler, optimizer_ft2, exp_lr_scheduler2, args.num_epochs)
+    
+model = train_model(model, optimizer_ft, exp_lr_scheduler, args.num_epochs)
