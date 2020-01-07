@@ -13,9 +13,10 @@ from utils.sampler import RandomIdentitySampler,RandomSampler
 from utils.Dataset import Dataset, DatasetTri
 from utils.model import ft_net, ft_fcnet
 from utils.utils import set_seed
+from utils.random_erasing import RandomErasing
 from torch.nn.parallel import DataParallel
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1,7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "5"
 
 parser = argparse.ArgumentParser()
 
@@ -41,9 +42,11 @@ data_transform = transforms.Compose([
 
 data_transform2 = transforms.Compose([
     transforms.Resize((args.img_bi_h, args.img_bi_w)),
-    transforms.RandomHorizontalFlip(),
+    transforms.RandomHorizontalFlip(p=1.0),
+    transforms.RandomCrop(size=(256, 128)),
     transforms.ToTensor(), # range [0, 255] -> [0.0,1.0]
-    transforms.Normalize(mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225])
+    transforms.Normalize(mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225]),
+    RandomErasing(probability = 1.0, mean=[0.0, 0.0, 0.0])
     ])
 
 image_datasets = {}
@@ -56,7 +59,7 @@ dataloaders = torch.utils.data.DataLoader(image_datasets['train'], batch_size=ar
 
 dataset_sizes = len(image_datasets['train'])
 
-triplet_loss = nn.TripletMarginLoss(margin=0.3, p=2)
+triplet_loss = nn.TripletMarginLoss(margin=0.5, p=2)
 
 model = ft_fcnet()
 

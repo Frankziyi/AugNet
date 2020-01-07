@@ -1,6 +1,6 @@
 python train_tri.py \
 --dataset_dir='/home/ziyi/share/Market-1501-v15.09.15/bounding_box_train/' \
---model_save_dir='/home/ziyi/Desktop/model_ckpt_tri/' \
+--model_save_dir='/home/ziyi/Desktop/model_ckpt_tri_randomerasing_margin05/' \
 --batch_size=32 \
 --img_h=256 \
 --img_w=128 \
