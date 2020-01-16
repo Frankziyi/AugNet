@@ -15,7 +15,7 @@ from utils.model import ft_net, ft_fcnet
 from utils.triphard import TripHard
 from torch.nn.parallel import DataParallel
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,7"
 
 parser = argparse.ArgumentParser()
 
@@ -47,13 +47,13 @@ data_transform2 = transforms.Compose([
 
 image_datasets = {}
 
-image_datasets['train'] = DatasetTriplet(os.path.join(image_dir), data_transform)
+image_datasets['train'] = datasets.ImageFolder(os.path.join(image_dir), data_transform)
 
-dataloaders = torch.utils.data.DataLoader(image_datasets['train'], batch_size=args.batch_size, shuffle=True, num_workers=8)
+dataloaders = torch.utils.data.DataLoader(image_datasets['train'], batch_size=args.batch_size, sampler=RandomIdentitySampler(image_datasets['train'].imgs), num_workers=8)
 
 dataset_sizes = len(image_datasets['train'])
 
-triphard_loss = nn.TripletMarginLoss(margin=0.3, p=2)
+triphard_loss = TripHard(margin=0.3)
 
 model = ft_fcnet()
 
@@ -63,7 +63,6 @@ exp_lr_scheduler = optim.lr_scheduler.StepLR(optimizer_ft, step_size=args.lr_dec
 
 model = DataParallel(model)
 model = model.cuda()
-
 
 def save_network(network, epoch_label):
     save_filename = 'net_%s.pth'% epoch_label
@@ -85,27 +84,23 @@ def train_model(model, optimizer, scheduler, num_epochs):
         running_loss = 0.0
         running_corrects = 0
 
-        image_datasets['train'].Shuffle()
-        dataloaders =  torch.utils.data.DataLoader(image_datasets['train'], batch_size=args.batch_size, shuffle=True, num_workers=8)
+        #image_datasets['train'].Shuffle()
+        #dataloaders =  torch.utils.data.DataLoader(image_datasets['train'], batch_size=args.batch_size, shuffle=True, num_workers=8)
 
         for data in dataloaders:
-            a, pos, neg = data
-            a = Variable(a.float()).cuda()
-            pos  = Variable(pos.float()).cuda()
-            neg = Variable(neg.float()).cuda()
+            inputs, labels = data
+            inputs = Variable(inputs.float()).cuda()
+            labels = Variable(labels.float()).cuda()
             optimizer.zero_grad()
-            a = model(a)
-            pos = model(pos)
-            neg = model(neg)
+            features = model(inputs)
             #pdb.set_trace()
-            loss = triphard_loss(a, pos, neg)
+            loss = triphard_loss(features, labels)
             loss.backward()
             optimizer.step()
             running_loss += loss.data.item()
             #pdb.set_trace()
 
         epoch_loss = running_loss / len(dataloaders)
-        epoch_acc = running_corrects * 1.0 / float(dataset_sizes)
         #pdb.set_trace()
 	print ('Epoch:{:d} Loss: {:.4f}'.format(epoch, epoch_loss))
 

@@ -10,7 +10,7 @@ from torch.utils.data.sampler import (
 
 
 class RandomIdentitySampler(Sampler):
-    def __init__(self, data_source, num_instances=1):
+    def __init__(self, data_source, num_instances=8):
         self.data_source = data_source
         self.num_instances = num_instances
         self.index_dic = defaultdict(list)
@@ -18,7 +18,7 @@ class RandomIdentitySampler(Sampler):
             self.index_dic[pid].append(index)
         self.pids = list(self.index_dic.keys())
         self.num_samples = len(self.pids)
-        pdb.set_trace()
+        #pdb.set_trace()
 
     def __len__(self):
         return self.num_samples * self.num_instances

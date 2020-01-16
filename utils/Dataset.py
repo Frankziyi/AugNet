@@ -100,6 +100,33 @@ def default_loader(path):
     else:
         return pil_loader(path)
 
+def make_triplet(data):
+    triplet_path = []
+    classes_indices = torch.randperm(len(data))
+    for i in classes_indices:
+        class_index = i-1 # to adjust the num randperm generated
+        image_num = len(data[class_index])
+        images_indices = torch.randperm(image_num)
+        for j in range(len(images_indices) - 1):
+            anchor_index = images_indices[j] - 1
+            positive_index = images_indices[j + 1] - 1
+            negative_class = random.randint(0, len(data)-1)
+            while negative_class == class_index:
+                negative_class = random.randint(0, len(data)-1)
+            negative_index = random.randint(0, len(data[negative_class])-1)
+            item = (data[class_index][anchor_index][0], data[class_index][positive_index][0], data[negative_class][negative_index][0])
+            triplet_path.append(item)
+        anchor_index = images_indices[len(images_indices)-1]
+        positive_index = images_indices[0]
+        while negative_class == class_index:
+            negative_class = random.randint(0, len(data)-1)
+        negative_index = random.randint(0, len(data[negative_class])-1)
+        item = (data[class_index][anchor_index][0], data[class_index][positive_index][0], data[negative_class][negative_index][0])
+        triplet_path.append(item)
+
+    return triplet_path
+
+
 class Dataset(data.Dataset):
     def __init__(self, image_dir, transform=None, transform_resize=None, CAM=False):
         self.transform = transform
@@ -166,34 +193,42 @@ class DatasetTri(data.Dataset):
     def __len__(self):
         return len(self.data)
 
+class DatasetTriphard(data.Dataset):
+    def __init__(self, image_dir, transform=None, transform_resize=None, CAM=False):
+        self.transform = transform
+        self.transform_resize = transform_resize
+        classes, class_to_idx = find_classes(image_dir)
+        self.data = make_dataset(image_dir, class_to_idx, IMG_EXTENSIONS, CAM)
+        self.CAM = CAM
+
+    def __getitem__(self, index):
+        if self.CAM:
+            path, pid, real_id, cam = self.data[index]
+        else:
+            path, pid, real_id = self.data[index]
+        img = default_loader(path)
+        if self.transform is not None:
+            img_normal = self.transform(img)
+        if self.transform_resize is not None:
+            img_resize = self.transform_resize(img)
+        if self.CAM:
+            return img_normal, pid, real_id, cam
+        else:
+            if self.transform_resize is not None:
+                return img_normal, img_resize, pid, real_id
+            else:
+                return img_normal, pid, real_id
+
+    def __len__(self):
+        return len(self.data)
+
 class DatasetTriplet(data.Dataset):
     def __init__(self, image_dir, transform=None, transform_resize=None, CAM=False):
         self.transform = transform
         self.transform_resize = transform_resize
         classes, class_to_idx = find_classes(image_dir)
         self.data = make_triplet_dataset(image_dir, class_to_idx, IMG_EXTENSIONS, CAM)
-        self.triplet_path = []
-        classes_indices = torch.randperm(len(self.data))
-        for i in classes_indices:
-            class_index = i-1 # to adjust the num randperm generated
-            image_num = len(self.data[class_index])
-            images_indices = torch.randperm(image_num)
-            for j in range(len(images_indices) - 1):
-                anchor_index = images_indices[j] - 1
-                positive_index = images_indices[j + 1] - 1
-                negative_class = random.randint(0, len(self.data)-1)
-                #while negative_class == class_index:
-                #    negative_class = random.randint(0, len(self.data)-1)
-                negative_index = random.randint(0, len(self.data[negative_class])-1)
-                item = (self.data[class_index][anchor_index][0], self.data[class_index][positive_index][0], self.data[negative_class][negative_index][0])
-                self.triplet_path.append(item)
-            anchor_index = images_indices[len(images_indices)-1]
-            positive_index = images_indices[0]
-            #while negative_class == class_index:
-            #    negative_class = random.randint(0, len(self.data)-1)
-            negative_index = random.randint(0, len(self.data[negative_class])-1)
-            item = (self.data[class_index][anchor_index][0], self.data[class_index][positive_index][0], self.data[negative_class][negative_index][0])
-            self.triplet_path.append(item)
+        self.triplet_path = make_triplet(self.data)
 
     def __getitem__(self, index):
          anchor_path, positive_path, negative_path = self.triplet_path[index]
@@ -207,3 +242,6 @@ class DatasetTriplet(data.Dataset):
 
     def __len__(self):
         return len(self.triplet_path)
+
+    def Shuffle(self):
+        self.triplet_path = make_triplet(self.data)

@@ -10,13 +10,13 @@ from torch.autograd import Variable
 from torchvision import datasets, transforms
 import torchvision.models as models
 from utils.sampler import RandomIdentitySampler,RandomSampler
-from utils.Dataset import Dataset, DatasetTri
+from utils.Dataset import Dataset, DatasetTri, DatasetTriphard
 from utils.model import ft_net, ft_fcnet
-from utils.utils import set_seed
+from utils.triphard import UnsupervisedTriphard
 from utils.random_erasing import RandomErasing
 from torch.nn.parallel import DataParallel
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+os.environ["CUDA_VISIBLE_DEVICES"] = "5,6"
 
 parser = argparse.ArgumentParser()
 
@@ -42,7 +42,7 @@ data_transform = transforms.Compose([
 
 data_transform2 = transforms.Compose([
     transforms.Resize((args.img_bi_h, args.img_bi_w)),
-    transforms.RandomHorizontalFlip(p=1.0),
+    transforms.RandomHorizontalFlip(p=0.5),
     transforms.RandomCrop(size=(256, 128)),
     transforms.ToTensor(), # range [0, 255] -> [0.0,1.0]
     transforms.Normalize(mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225]),
@@ -53,13 +53,13 @@ image_datasets = {}
 
 #image_datasets['train'] = datasets.ImageFolder(os.path.join(image_dir), data_transform)
 
-image_datasets['train'] = DatasetTri(image_dir, data_transform, data_transform2)
+image_datasets['train'] = DatasetTriphard(image_dir, data_transform, data_transform2)
 
 dataloaders = torch.utils.data.DataLoader(image_datasets['train'], batch_size=args.batch_size, shuffle=True, num_workers=8)
 
 dataset_sizes = len(image_datasets['train'])
 
-triplet_loss = nn.TripletMarginLoss(margin=0.5, p=2)
+triphard_loss = UnsupervisedTriphard(margin=0.5)
 
 model = ft_fcnet()
 
@@ -69,7 +69,6 @@ exp_lr_scheduler = optim.lr_scheduler.StepLR(optimizer_ft, step_size=args.lr_dec
 
 model = DataParallel(model)
 model = model.cuda()
-
 
 def save_network(network, epoch_label):
     save_filename = 'net_%s.pth'% epoch_label
@@ -92,17 +91,15 @@ def train_model(model, optimizer, scheduler, num_epochs):
         running_corrects = 0
 
         for data in dataloaders:
-            inputs, inputs_resize, inputs_neg, _, _ = data
+            inputs, inputs_resize, _, _ = data
             inputs = Variable(inputs.float()).cuda()
             inputs_resize = Variable(inputs_resize.float()).cuda()
-            inputs_neg = Variable(inputs_neg.float()).cuda()
             optimizer.zero_grad()
             features = model(inputs)
             features_resize = model(inputs_resize)
-            features_neg = model(inputs_neg)
             #loss = torch.dist(features, features_resize) - 0.0001 * torch.dist(features, features_neg, p=2)
             #pdb.set_trace()
-            loss = triplet_loss(features, features_resize, features_neg)
+            loss = triphard_loss(features, features_resize)
             loss.backward()
             optimizer.step()
             running_loss += loss.data.item()
