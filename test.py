@@ -20,6 +20,7 @@ import yaml
 import math
 import pdb
 from utils.model import ft_net, ft_fcnet, ft_net_dense
+from utils.resnet import remove_fc
 
 #fp16
 try:
@@ -79,7 +80,7 @@ if len(gpu_ids)>0:
 # data.
 #
 data_transforms = transforms.Compose([
-        transforms.Resize((256,128), interpolation=3),
+        transforms.Resize((384,128), interpolation=3),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ############### Ten Crop        
@@ -120,8 +121,10 @@ use_gpu = torch.cuda.is_available()
 #---------------------------
 def load_network(network):
     save_path = os.path.join(name,'net_%s.pth'%opt.which_epoch)
+    #save_path = os.path.join(name, 'pretrained_weight.pth')
     #pdb.set_trace()
     network.load_state_dict({k.replace('module.',''):v for k,v in torch.load(save_path).items()})
+    #network.load_state_dict({'model.'+ k : v for k, v in remove_fc(torch.load(save_path)).items()}, strict=False)
     return network
 
 

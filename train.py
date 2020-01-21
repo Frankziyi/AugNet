@@ -58,7 +58,6 @@ loss_function = torch.nn.CrossEntropyLoss()
 
 model = DataParallel(model)
 model = model.cuda()
-pretrained_model = models.resnet50(pretrained=True)
 
 def save_network(network, epoch_label):
     save_filename = 'net_%s.pth'% epoch_label
@@ -70,8 +69,8 @@ def save_network(network, epoch_label):
 
 def train_model(model, optimizer, scheduler, num_epochs):
 
-    save_network(model, 0)
-    '''
+    #save_network(model, 0)
+    
     scheduler.step()
     model.train()
 
@@ -107,5 +106,5 @@ def train_model(model, optimizer, scheduler, num_epochs):
             save_network(model, epoch)
 
     save_network(model, 'last')
-    '''
+    
 model = train_model(model, optimizer_ft, exp_lr_scheduler, args.num_epochs)
