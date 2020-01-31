@@ -1,10 +1,11 @@
 python train_augnet.py \
+--pretrained_path='/home/ziyi/Desktop' \
 --dataset_dir='/home/ziyi/share/Market-1501-v15.09.15/bounding_box_train/' \
---model_save_dir='/home/ziyi/Desktop/model_ckpt_aug_resize/' \
+--model_save_dir='/home/ziyi/Desktop/model_ckpt_augnet_tri/' \
 --batch_size=32 \
---img_h=256 \
+--img_h=384 \
 --img_w=128 \
---img_bi_h=512 \
---img_bi_w=256 \
+--img_bi_h=576 \
+--img_bi_w=192 \
 --num_epochs=100
 

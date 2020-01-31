@@ -65,9 +65,9 @@ dataloaders = torch.utils.data.DataLoader(image_datasets['train'], batch_size=ar
 
 dataset_sizes = len(image_datasets['train'])
 
-triplet_loss = nn.TripletMarginLoss(margin=2.0)
+#triplet_loss = nn.TripletMarginLoss(margin=2.0)
 
-#triplet_loss = UnsupervisedTriphard(margin=0.3)
+triplet_loss = UnsupervisedTriphard(margin=2.0)
 
 model = ft_fcnet()
 
@@ -111,14 +111,14 @@ def train_model(model, optimizer, scheduler, num_epochs):
             #inputs, pos, _, _ = data
             inputs = Variable(inputs.float()).cuda()
             pos = Variable(pos.float()).cuda()
-            neg = Variable(neg.float()).cuda()
+            #neg = Variable(neg.float()).cuda()
             optimizer.zero_grad()
             features = model(inputs)
             features_pos = model(pos)
-            features_neg = model(neg)
+            #features_neg = model(neg)
             #pdb.set_trace()
-            loss = triplet_loss(features, features_pos, features_neg)
-            #loss = triplet_loss(features, features_pos)
+            #loss = triplet_loss(features, features_pos, features_neg)
+            loss = triplet_loss(features, features_pos)
             loss.backward()
             optimizer.step()
             running_loss += loss.data.item()
@@ -128,9 +128,9 @@ def train_model(model, optimizer, scheduler, num_epochs):
         epoch_acc = running_corrects * 1.0 / float(dataset_sizes)
         #pdb.set_trace()
 	print ('Epoch:{:d} Loss: {:.4f}'.format(epoch, epoch_loss))
-        save_network(model, epoch)
-	#if (epoch + 1) % 5 == 0:
-        #    save_network(model, epoch)
+        #save_network(model, epoch)
+	if (epoch + 1) % 10 == 0:
+            save_network(model, epoch)
 
     save_network(model, 'last')
     
