@@ -80,7 +80,7 @@ class ft_fcnet(nn.Module):
 
     def __init__(self):
         super(ft_fcnet, self).__init__()
-        model_ft = models.resnet50(pretrained=True)
+        model_ft = models.resnet50(pretrained=False)
         model_ft.avpool = nn.AdaptiveAvgPool2d((1,1))
         self.model = model_ft
         
@@ -96,6 +96,7 @@ class ft_fcnet(nn.Module):
         x = self.model.layer4(x)
         x = self.model.avgpool(x)
         x = torch.squeeze(x)
+        x = x.renorm(2,0,1e-5).mul(1e5)
         return x
 
 # Define the DenseNet121-based Model

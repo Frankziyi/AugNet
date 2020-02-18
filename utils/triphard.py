@@ -29,7 +29,7 @@ class TripHard(nn.Module):
         return loss
 
 class UnsupervisedTriphard(nn.Module):
-    def __init__(self, margin=0.3):
+    def __init__(self, margin=2.0):
         super(UnsupervisedTriphard, self).__init__()
         self.margin = margin
         self.ranking_loss = nn.TripletMarginLoss(margin=margin, p=2)
@@ -55,5 +55,21 @@ class UnsupervisedTriphard(nn.Module):
         
         #pos = torch.stack(pos)
         negative = torch.stack(negative)
+        loss = 0.0
+        #pdb.set_trace()
+        '''
+        for i in range(n):
+            anchor = inputs[i].expand(1,2048)
+            pos = positive[i].expand(1,2048)
+            neg = negative[i].expand(1,2048)
+            anchor_norm = torch.norm(anchor, p=2, dim=1, keepdim=True)
+            anchor = anchor.div(anchor_norm.expand_as(anchor))
+            pos_norm = torch.norm(pos, p=2, dim=1, keepdim=True)
+            pos = pos.div(pos_norm.expand_as(pos))
+            neg_norm = torch.norm(neg, p=2, dim=1, keepdim=True)
+            neg = neg.div(neg_norm.expand_as(neg))
+            pdb.set_trace()
+            loss += self.ranking_loss(inputs[i], positive[i], negative[i])
+        '''
         loss = self.ranking_loss(inputs, positive, negative)
         return loss

@@ -1,7 +1,7 @@
-python train_tri.py \
+python train_tri2.py \
 --pretrained_path='/home/ziyi/Desktop' \
 --dataset_dir='/home/ziyi/share/Market-1501-v15.09.15/bounding_box_train/' \
---model_save_dir='/home/ziyi/Desktop/try/' \
+--model_save_dir='/home/ziyi/Desktop/hard0/' \
 --batch_size=32 \
 --img_h=384 \
 --img_w=128 \

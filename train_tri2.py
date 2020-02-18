@@ -18,7 +18,7 @@ from torch.nn.parallel import DataParallel
 from utils.resnet import remove_fc
 import utils.my_transforms as my_transforms
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "3,4"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
 
 parser = argparse.ArgumentParser()
 
@@ -118,6 +118,10 @@ def train_model(model, optimizer, scheduler, num_epochs):
             features = model(inputs)
             features_pos = model(pos)
             #features_neg = model(neg)
+            #pdb.set_trace()
+            #features = features.renorm(2, 0, 1e-5).mul(1e5)
+            #features_pos = features_pos.renorm(2, 0, 1e-5).mul(1e5)
+            #features_neg = features_neg.renorm(2, 0, 1e-5).mul(1e5)
             #loss = triplet_loss(features, features_pos, features_neg)
             loss = triplet_loss(features, features_pos)
             #pdb.set_trace()

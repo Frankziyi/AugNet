@@ -15,7 +15,7 @@ from utils.model import ft_net, ft_fcnet
 from utils.triphard import TripHard
 from torch.nn.parallel import DataParallel
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
 
 parser = argparse.ArgumentParser()
 

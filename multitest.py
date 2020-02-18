@@ -33,18 +33,17 @@ except ImportError: # will be 3.x series
 
 parser = argparse.ArgumentParser(description='Training')
 parser.add_argument('--gpu_ids',default='0', type=str,help='gpu_ids: e.g. 0  0,1,2  0,2')
-parser.add_argument('--which_epoch',default='last', type=str, help='0,1,2,3...or last')
+parser.add_argument('--which_epochsmall',default='last', type=str, help='0,1,2,3...or last')
+parser.add_argument('--which_epochlarge',default='last', type=str, help='0,1,2,3...or last')
 parser.add_argument('--test_dir',default='../Market/pytorch',type=str, help='./test_data')
-parser.add_argument('--name', default='ft_ResNet50', type=str, help='save model path')
+parser.add_argument('--namesmall', default='ft_ResNet50', type=str, help='save model path')
+parser.add_argument('--namelarge', default='ft_ResNet50', type=str, help='save model path')
 parser.add_argument('--batchsize', default=32, type=int, help='batchsize')
 parser.add_argument('--use_dense', action='store_true', help='use densenet121' )
 parser.add_argument('--PCB', action='store_true', help='use PCB' )
 parser.add_argument('--multi', action='store_true', help='use multiple query' )
 parser.add_argument('--fp16', action='store_true', help='use fp16.' )
 parser.add_argument('--ms',default='1', type=str,help='multiple_scale: e.g. 1 1,1.1  1,1.1,1.2')
-parser.add_argument('--img_h', default=384, type=int)
-parser.add_argument('--img_w', default=128, type=int)
-
 
 opt = parser.parse_args()
 ###load config###
@@ -53,8 +52,10 @@ opt = parser.parse_args()
 opt.nclasses = 751
 
 str_ids = opt.gpu_ids.split(',')
-which_epoch = opt.which_epoch
-name = opt.name
+which_epoch1 = opt.which_epochsmall
+name1 = opt.namesmall
+which_epoch2 = opt.which_epochlarge
+name2 = opt.namelarge
 test_dir = opt.test_dir
 
 gpu_ids = []
@@ -83,7 +84,7 @@ if len(gpu_ids)>0:
 # data.
 #
 data_transforms = transforms.Compose([
-        transforms.Resize((opt.img_h, opt.img_w), interpolation=3),
+        transforms.Resize((384,128), interpolation=3),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ############### Ten Crop        
@@ -122,9 +123,16 @@ use_gpu = torch.cuda.is_available()
 ######################################################################
 # Load model
 #---------------------------
-def load_network(network):
-    save_path = os.path.join(name,'net_%s.pth'%opt.which_epoch)
-    #save_path = os.path.join(name,'net1_%s.pth'%opt.which_epoch)
+def load_network1(network):
+    save_path = os.path.join(name1,'net1_%s.pth'%which_epoch1)
+    #save_path = os.path.join(name, 'pretrained_weight.pth')
+    #pdb.set_trace()
+    network.load_state_dict({k.replace('module.',''):v for k,v in torch.load(save_path).items()})
+    #network.load_state_dict({'model.'+ k : v for k, v in remove_fc(torch.load(save_path)).items()}, strict=False)
+    return network
+
+def load_network2(network):
+    save_path = os.path.join(name2,'net2_%s.pth'%which_epoch2)
     #save_path = os.path.join(name, 'pretrained_weight.pth')
     #pdb.set_trace()
     network.load_state_dict({k.replace('module.',''):v for k,v in torch.load(save_path).items()})
@@ -144,7 +152,7 @@ def fliplr(img):
     img_flip = img.index_select(3,inv_idx)
     return img_flip
 
-def extract_feature(model,dataloaders):
+def extract_feature(model1, model2,dataloaders):
     features = torch.FloatTensor()
     count = 0
     for data in dataloaders:
@@ -152,8 +160,8 @@ def extract_feature(model,dataloaders):
         n, c, h, w = img.size()
         count += n
         print(count)
-        #ff = torch.FloatTensor(n,512).zero_().cuda()
-        ff = torch.FloatTensor(n,2048).zero_().cuda()
+        ff = torch.FloatTensor(n,4096).zero_().cuda()
+        #ff = torch.FloatTensor(n,2048).zero_().cuda()
         if opt.PCB:
             ff = torch.FloatTensor(n,2048,6).zero_().cuda() # we have six parts
 
@@ -166,11 +174,16 @@ def extract_feature(model,dataloaders):
                     # bicubic is only  available in pytorch>= 1.1
                     input_img = nn.functional.interpolate(input_img, scale_factor=scale, mode='bicubic', align_corners=False)
                 #features_single, outputs = model(input_img)
-                outputs = model(input_img)
+                outputs1 = model1(input_img)
                 #pdb.set_trace() 
-                ff += outputs
+                #ff += outputs1
+                outputs2 = model2(input_img)
+                #ff += outputs2
+                ff_temp = torch.cat([outputs1, outputs2], 1)
+                #ff_temp = 0.5 * outputs1 + 0.5 * outputs2
+                ff += ff_temp
+                #pdb.set_trace()
         # norm feature
-        '''
         if opt.PCB:
             # feature size (n,2048,6)
             # 1. To treat every part equally, I calculate the norm for every 2048-dim part feature.
@@ -179,9 +192,10 @@ def extract_feature(model,dataloaders):
             ff = ff.div(fnorm.expand_as(ff))
             ff = ff.view(ff.size(0), -1)
         else:
-            #fnorm = torch.norm(ff, p=2, dim=1, keepdim=True)
-            #ff = ff.div(fnorm.expand_as(ff))
-        '''
+            fnorm = torch.norm(ff, p=2, dim=1, keepdim=True)
+            ff = ff.div(fnorm.expand_as(ff))
+            #pdb.set_trace()
+
         features = torch.cat((features,ff.data.cpu()), 0)
     return features
 
@@ -217,7 +231,8 @@ if opt.use_dense:
     model_structure = ft_net_dense(opt.nclasses)
 else:
     #model_structure = ft_net(opt.nclasses)
-    model_structure = ft_fcnet()
+    model_structure1 = ft_fcnet()
+    model_structure2 = ft_fcnet()
 
 if opt.PCB:
     model_structure = PCB(opt.nclasses)
@@ -225,7 +240,8 @@ if opt.PCB:
 #if opt.fp16:
 #    model_structure = network_to_half(model_structure)
 
-model = load_network(model_structure)
+model1 = load_network1(model_structure1)
+model2 = load_network2(model_structure2)
 
 '''
 # Remove the final fc layer and classifier layer
@@ -242,14 +258,16 @@ else:
         model.classifier.classifier = nn.Sequential()
 '''
 # Change to test mode
-model = model.eval()
+model1 = model1.eval()
+model2 = model2.eval()
 if use_gpu:
-    model = model.cuda()
+    model1 = model1.cuda()
+    model2 = model2.cuda()
 
 # Extract feature
 with torch.no_grad():
-    gallery_feature = extract_feature(model,dataloaders['gallery'])
-    query_feature = extract_feature(model,dataloaders['query'])
+    gallery_feature = extract_feature(model1, model2, dataloaders['gallery'])
+    query_feature = extract_feature(model1, model2, dataloaders['query'])
     if opt.multi:
         mquery_feature = extract_feature(model,dataloaders['multi-query'])
     
@@ -257,8 +275,11 @@ with torch.no_grad():
 result = {'gallery_f':gallery_feature.numpy(),'gallery_label':gallery_label,'gallery_cam':gallery_cam,'query_f':query_feature.numpy(),'query_label':query_label,'query_cam':query_cam}
 scipy.io.savemat('pytorch_result.mat',result)
 
-print(opt.name)
-result = '%s/result.txt'%opt.name
+res_save_path = '/home/ziyi/Desktop/tempres'
+print(res_save_path) # where the result save
+
+#result = '%s/result.txt'%opt.namesmall
+result = '%s/result.txt'%res_save_path
 os.system('python evaluate_gpu.py | tee -a %s'%result)
 
 if opt.multi:

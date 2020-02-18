@@ -193,6 +193,71 @@ class DatasetTri(data.Dataset):
     def __len__(self):
         return len(self.data)
 
+class DatasetMulti(data.Dataset):
+    def __init__(self, image_dir, transform=None, transform_resize=None, CAM=False):
+        self.transform = transform
+        self.transform_resize = transform_resize
+        classes, class_to_idx = find_classes(image_dir)
+        self.data = make_dataset(image_dir, class_to_idx, IMG_EXTENSIONS, CAM)
+        self.CAM = CAM
+
+    def __getitem__(self, index):
+        path, pid, real_id = self.data[index]
+        img = default_loader(path)
+        rand_index = random.randint(0, len(self.data)-1)
+        while rand_index == index:
+            rand_index = random.randint(0, len(self.data)-1)
+        img_negative_idx = rand_index
+        img_negative_path, _, _ = self.data[img_negative_idx]
+        img_negative = default_loader(img_negative_path)
+        if self.transform is not None:
+            img_normal = self.transform(img)
+        if self.transform_resize is not None:
+            img_negative = self.transform(img_negative)
+            img_resize = self.transform_resize(img)
+        if self.CAM:
+            return img_normal, pid, real_id, cam
+        else:
+            if self.transform_resize is not None:
+                return img_normal, img_resize, img_negative, pid, real_id
+            else:
+                return img_normal, pid, real_id
+
+    def __len__(self):
+        return len(self.data)
+
+
+
+class DatasetAug(data.Dataset):
+    def __init__(self, image_dir, transform=None, transform_resize=None, transform_resize2=None, CAM=False):
+        self.transform = transform
+        self.transform_resize = transform_resize
+        self.transform_resize2 = transform_resize2
+        classes, class_to_idx = find_classes(image_dir)
+        self.data = make_dataset(image_dir, class_to_idx, IMG_EXTENSIONS, CAM)
+        self.CAM = CAM
+
+    def __getitem__(self, index):
+        if self.CAM:
+            path, pid, real_id, cam = self.data[index]
+        else:
+            path, pid, real_id = self.data[index]
+        img = default_loader(path)
+        rand_index = random.randint(0, len(self.data)-1)
+        while rand_index == index:
+            rand_index = random.randint(0, len(self.data)-1)
+        img_negative_idx = rand_index
+        img_negative_path, _, _ = self.data[img_negative_idx]
+        img_negative = default_loader(img_negative_path)
+        img_normal = self.transform(img)
+        img_negative = self.transform(img_negative)
+        img_resize = self.transform_resize(img)
+        img_resize2 = self.transform_resize2(img)
+        return img_normal, img_resize, img_resize2, img_negative, pid, real_id
+
+    def __len__(self):
+        return len(self.data)
+
 class DatasetTriphard(data.Dataset):
     def __init__(self, image_dir, transform=None, transform_resize=None, CAM=False):
         self.transform = transform
