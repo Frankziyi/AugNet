@@ -184,6 +184,7 @@ def extract_feature(model1, model2,dataloaders):
                 ff += ff_temp
                 #pdb.set_trace()
         # norm feature
+        '''
         if opt.PCB:
             # feature size (n,2048,6)
             # 1. To treat every part equally, I calculate the norm for every 2048-dim part feature.
@@ -195,7 +196,7 @@ def extract_feature(model1, model2,dataloaders):
             fnorm = torch.norm(ff, p=2, dim=1, keepdim=True)
             ff = ff.div(fnorm.expand_as(ff))
             #pdb.set_trace()
-
+        '''
         features = torch.cat((features,ff.data.cpu()), 0)
     return features
 

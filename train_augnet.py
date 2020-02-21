@@ -18,7 +18,7 @@ from torch.nn.parallel import DataParallel
 import utils.my_transforms as my_transforms
 import torch.nn.functional as F
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "4,6"
+os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
 
 parser = argparse.ArgumentParser()
 
@@ -176,14 +176,12 @@ def train_model(model, optimizer, scheduler, optimizer2, scheduler2, num_epochs)
             anchor2 = model2(inputs)
             pos2 = model2(inputs_resize2)
             #neg2 = model2(neg)
+            #anchor_l2 = F.pairwise_distance(anchor1, anchor2, p=2)
             loss1 = triplet_loss(anchor1, pos1)
             loss2 = triplet_loss(anchor2, pos2)
-            anchor1 = anchor1.renorm(2,0,1e-5).mul(1e5)
-            anchor2 = anchor2.renorm(2,0,1e-5).mul(1e5)
-            pos1 = pos1.renorm(2,0,1e-5).mul(1e5)
-            pos2 = pos2.renorm(2,0,1e-5).mul(1e5)
-            #anchor_l2 = F.pairwise_distance(anchor1, anchor2, p=2)
-            aug_l2 = args.l2loss * F.pairwise_distance(pos1, pos2, p=2).sum()
+            l2_distance = F.pairwise_distance(pos1, pos2, p=2).sum()
+            aug_l2 = args.l2loss * l2_distance
+            #pdb.set_trace()
             running_loss1 += loss1.data.item()
             running_loss2 += loss2.data.item()
             l2_loss += aug_l2.data.item()
