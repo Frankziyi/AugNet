@@ -64,7 +64,7 @@ dataloaders = torch.utils.data.DataLoader(image_datasets['train'], batch_size=ar
 
 dataset_sizes = len(image_datasets['train'])
 
-triplet_loss = nn.TripletMarginLoss(margin=0.3)
+#triplet_loss = nn.TripletMarginLoss(margin=0.3)
 
 #triplet_loss = UnsupervisedTriphard(margin=0.3)
 
@@ -82,10 +82,11 @@ def load_network(network):
 
 model = load_network(model_structure)
 
-#optimizer_ft = optim.SGD(model.parameters(), lr = 0.0, momentum=0.0, weight_decay=0)
 optimizer_ft = optim.SGD(model.parameters(), lr = 0.0001, momentum=0.9, weight_decay=5e-4)
 
 exp_lr_scheduler = optim.lr_scheduler.StepLR(optimizer_ft, step_size=args.lr_decay_epochs, gamma=0.1)
+
+triplet_loss = UnsupervisedTriphard(margin=0.3)
 
 model = DataParallel(model)
 model = model.cuda()
@@ -111,17 +112,17 @@ def train_model(model, optimizer, scheduler, num_epochs):
 
         for data in dataloaders:
             
-            inputs, pos, neg, _, _ = data
-            #inputs, pos, _, _ = data
+            #inputs, pos, neg, _, _ = data
+            inputs, pos, _, _ = data
             inputs = Variable(inputs.float()).cuda()
             pos = Variable(pos.float()).cuda()
-            neg = Variable(neg.float()).cuda()
+            #neg = Variable(neg.float()).cuda()
             optimizer.zero_grad()
             features = model(inputs)
             features_pos = model(pos)
-            features_neg = model(neg)
-            loss = triplet_loss(features, features_pos, features_neg)
-            #loss = triplet_loss(features, features_pos)
+            #features_neg = model(neg)
+            #loss = triplet_loss(features, features_pos, features_neg)
+            loss = triplet_loss(features, features_pos)
             #pdb.set_trace()
             loss.backward()
             optimizer.step()
