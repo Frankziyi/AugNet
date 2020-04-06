@@ -73,6 +73,7 @@ class ft_net(nn.Module):
         x = self.model.avgpool(x)
         x = torch.squeeze(x)
         feature = x
+        feature = feature.renorm(2,0,1e-5).mul(1e5)
         x = self.classifier(x)
         return feature, x
 

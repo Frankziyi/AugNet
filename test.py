@@ -123,11 +123,11 @@ use_gpu = torch.cuda.is_available()
 # Load model
 #---------------------------
 def load_network(network):
-    #save_path = os.path.join(name,'net_%s.pth'%opt.which_epoch)
-    save_path = os.path.join(name,'net2_%s.pth'%opt.which_epoch)
+    save_path = os.path.join(name,'net_%s.pth'%opt.which_epoch)
+    #save_path = os.path.join(name,'net2_%s.pth'%opt.which_epoch)
     #save_path = os.path.join(name, 'pretrained_weight.pth')
     #pdb.set_trace()
-    network.load_state_dict({k.replace('module.',''):v for k,v in torch.load(save_path).items()})
+    network.load_state_dict({k.replace('module.',''):v for k,v in torch.load(save_path).items()},strict=False)
     #network.load_state_dict({'model.'+ k : v for k, v in remove_fc(torch.load(save_path)).items()}, strict=False)
     return network
 
@@ -217,6 +217,7 @@ if opt.use_dense:
     model_structure = ft_net_dense(opt.nclasses)
 else:
     #model_structure = ft_net(opt.nclasses)
+    #model_structure = ft_net(1401)
     model_structure = ft_fcnet()
 
 if opt.PCB:
@@ -241,6 +242,7 @@ else:
     #else:
         model.classifier.classifier = nn.Sequential()
 '''
+
 # Change to test mode
 model = model.eval()
 if use_gpu:

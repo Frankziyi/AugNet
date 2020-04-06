@@ -155,6 +155,13 @@ def remove_fc(state_dict):
       del state_dict[key]
   return state_dict
 
+def remove_fc2(state_dict):
+  """Remove the fc layer parameters from state_dict."""
+  for key, value in state_dict.items():
+    if key.startswith('module.model.fc.'):
+      del state_dict[key]
+  return state_dict
+
 
 def resnet18(pretrained=False, **kwargs):
   """Constructs a ResNet-18 model.

@@ -1,7 +1,7 @@
 python train.py \
---dataset_dir='/home/ziyi/share/Market-1501-v15.09.15/bounding_box_train/' \
---model_save_dir='/home/ziyi/Desktop/model_ckpt/' \
+--dataset_dir='/home/share/qize/data/MSMT17_V1/rgb/train' \
+--model_save_dir='/home/ziyi/Desktop/MSMTmodellarge/' \
 --batch_size=32 \
---img_h=256 \
---img_w=128 \
+--img_h=576 \
+--img_w=192 \
 --num_epochs=200

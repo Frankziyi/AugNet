@@ -21,6 +21,7 @@ import math
 import pdb
 from utils.model import ft_net, ft_fcnet, ft_net_dense
 from utils.resnet import remove_fc
+from utils.Dataset import DatasetTri
 
 #fp16
 try:
@@ -44,6 +45,10 @@ parser.add_argument('--PCB', action='store_true', help='use PCB' )
 parser.add_argument('--multi', action='store_true', help='use multiple query' )
 parser.add_argument('--fp16', action='store_true', help='use fp16.' )
 parser.add_argument('--ms',default='1', type=str,help='multiple_scale: e.g. 1 1,1.1  1,1.1,1.2')
+parser.add_argument('--img_h', type=int)
+parser.add_argument('--img_w', type=int)
+parser.add_argument('--img_h2', type=int)
+parser.add_argument('--img_w2', type=int)
 
 opt = parser.parse_args()
 ###load config###
@@ -84,7 +89,7 @@ if len(gpu_ids)>0:
 # data.
 #
 data_transforms = transforms.Compose([
-        transforms.Resize((384,128), interpolation=3),
+        transforms.Resize((opt.img_h, opt.img_w), interpolation=3),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ############### Ten Crop        
@@ -99,6 +104,12 @@ data_transforms = transforms.Compose([
           # ))
 ])
 
+data_transforms2 = transforms.Compose([
+        transforms.Resize((opt.img_h2, opt.img_w2), interpolation=3),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+])
+
 if opt.PCB:
     data_transforms = transforms.Compose([
         transforms.Resize((384,192), interpolation=3),
@@ -109,6 +120,7 @@ if opt.PCB:
 
 data_dir = test_dir
 
+'''
 if opt.multi:
     image_datasets = {x: datasets.ImageFolder( os.path.join(data_dir,x) ,data_transforms) for x in ['gallery','query','multi-query']}
     dataloaders = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=opt.batchsize,
@@ -117,25 +129,32 @@ else:
     image_datasets = {x: datasets.ImageFolder( os.path.join(data_dir,x) ,data_transforms) for x in ['gallery','query']}
     dataloaders = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=opt.batchsize,
                                              shuffle=False, num_workers=16) for x in ['gallery','query']}
-class_names = image_datasets['query'].classes
+    image_datasets2 = {x: datasets.ImageFolder( os.path.join(data_dir,x) ,data_transforms2) for x in ['gallery','query']}
+    dataloaders2 = {x: torch.utils.data.DataLoader(image_datasets2[x], batch_size=opt.batchsize,
+                                             shuffle=False, num_workers=16) for x in ['gallery','query']}
+'''
+
+image_datasets = {x: DatasetTri(os.path.join(data_dir,x), data_transforms, data_transforms2) for x in ['gallery', 'query']}
+dataloaders = {x : torch.utils.data.DataLoader(image_datasets[x], batch_size=opt.batchsize, shuffle=False, num_workers=16) for x in ['gallery', 'query']}
+#class_names = image_datasets['train'].classes
 use_gpu = torch.cuda.is_available()
 
 ######################################################################
 # Load model
 #---------------------------
 def load_network1(network):
-    save_path = os.path.join(name1,'net1_%s.pth'%which_epoch1)
+    save_path = os.path.join(name1,'net_%s.pth'%which_epoch1)
     #save_path = os.path.join(name, 'pretrained_weight.pth')
     #pdb.set_trace()
-    network.load_state_dict({k.replace('module.',''):v for k,v in torch.load(save_path).items()})
+    network.load_state_dict({k.replace('module.',''):v for k,v in torch.load(save_path).items()}, strict=False)
     #network.load_state_dict({'model.'+ k : v for k, v in remove_fc(torch.load(save_path)).items()}, strict=False)
     return network
 
 def load_network2(network):
-    save_path = os.path.join(name2,'net2_%s.pth'%which_epoch2)
+    save_path = os.path.join(name2,'net_%s.pth'%which_epoch2)
     #save_path = os.path.join(name, 'pretrained_weight.pth')
     #pdb.set_trace()
-    network.load_state_dict({k.replace('module.',''):v for k,v in torch.load(save_path).items()})
+    network.load_state_dict({k.replace('module.',''):v for k,v in torch.load(save_path).items()}, strict=False)
     #network.load_state_dict({'model.'+ k : v for k, v in remove_fc(torch.load(save_path)).items()}, strict=False)
     return network
 
@@ -152,37 +171,30 @@ def fliplr(img):
     img_flip = img.index_select(3,inv_idx)
     return img_flip
 
-def extract_feature(model1, model2,dataloaders):
+def extract_feature(model1, model2, dataloaders):
     features = torch.FloatTensor()
     count = 0
     for data in dataloaders:
-        img, label = data
-        n, c, h, w = img.size()
+        img1, img2, _, _, _ = data
+        n, c, h, w = img1.size()
         count += n
         print(count)
-        ff = torch.FloatTensor(n,4096).zero_().cuda()
-        #ff = torch.FloatTensor(n,2048).zero_().cuda()
-        if opt.PCB:
-            ff = torch.FloatTensor(n,2048,6).zero_().cuda() # we have six parts
+        #ff = torch.FloatTensor(n,4096).zero_().cuda()
+        ff = torch.FloatTensor(n,2048).zero_().cuda()
 
         for i in range(2):
             if(i==1):
-                img = fliplr(img)
-            input_img = Variable(img.cuda())
-            for scale in ms:
-                if scale != 1:
-                    # bicubic is only  available in pytorch>= 1.1
-                    input_img = nn.functional.interpolate(input_img, scale_factor=scale, mode='bicubic', align_corners=False)
-                #features_single, outputs = model(input_img)
-                outputs1 = model1(input_img)
-                #pdb.set_trace() 
-                #ff += outputs1
-                outputs2 = model2(input_img)
-                #ff += outputs2
-                ff_temp = torch.cat([outputs1, outputs2], 1)
-                #ff_temp = 0.5 * outputs1 + 0.5 * outputs2
-                ff += ff_temp
-                #pdb.set_trace()
+                img1=fliplr(img1)
+                img2=fliplr(img2)
+            input_img1 = Variable(img1.cuda())
+            input_img2 = Variable(img2.cuda())
+            outputs1 = model1(input_img1) 
+            #ff += outputs1
+            outputs2 = model2(input_img2)
+            #ff += outputs2
+            #ff_temp = torch.cat([outputs1, outputs2], 1)
+            ff_temp = 0.5 * outputs1 + 0.5 * outputs2
+            ff += ff_temp
         # norm feature
         '''
         if opt.PCB:
@@ -203,7 +215,7 @@ def extract_feature(model1, model2,dataloaders):
 def get_id(img_path):
     camera_id = []
     labels = []
-    for path, v in img_path:
+    for path, v, q in img_path:
         #filename = path.split('/')[-1]
         filename = os.path.basename(path)
         label = filename[0:4]
@@ -215,8 +227,8 @@ def get_id(img_path):
         camera_id.append(int(camera[0]))
     return camera_id, labels
 
-gallery_path = image_datasets['gallery'].imgs
-query_path = image_datasets['query'].imgs
+gallery_path = image_datasets['gallery'].data
+query_path = image_datasets['query'].data
 
 gallery_cam,gallery_label = get_id(gallery_path)
 query_cam,query_label = get_id(query_path)

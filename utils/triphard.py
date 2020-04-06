@@ -51,7 +51,7 @@ class UnsupervisedTriphard(nn.Module):
             pos.append(positive[i])
         '''
         for i in range(n):
-            negative.append(inputs[dist[i].argsort()[2]]) #???
+            negative.append(inputs[dist[i].argsort()[3]]) #???
         
         #pos = torch.stack(pos)
         negative = torch.stack(negative)

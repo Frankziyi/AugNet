@@ -45,7 +45,10 @@ def make_dataset(dir, class_to_idx, extensions, CAM=False):
                         cam = fname.split('c', 1)[1][0]
                         item = (path, class_to_idx[target], int(target), int(cam))
                     else:
-                        item = (path, class_to_idx[target], int(target))
+                        if target == '-1_c':
+                            item = (path, -1, -1)
+                        else:
+                            item = (path, class_to_idx[target], int(target))
                     images.append(item)
 
     return images
@@ -156,6 +159,20 @@ class Dataset(data.Dataset):
     def __len__(self):
         return len(self.data)
 
+class MSMT17(data.Dataset):
+    def __init__(self, image_dir, transform=None, transform_resize=None):
+        self.transform = transform
+        classes, class_to_idx = find_classes(image_dir)
+        self.data = make_dataset(image_dir, class_to_idx, IMG_EXTENSIONS, False)
+
+    def __getitem__(self, index):
+        path, pid, real_id = self.data[index]
+        img = default_loader(path)
+        img = self.transform(img)
+        return img, pid, real_id
+
+    def __len__(self):
+        return len(self.data)
 
 class DatasetTri(data.Dataset):
     def __init__(self, image_dir, transform=None, transform_resize=None, CAM=False):
@@ -229,10 +246,11 @@ class DatasetMulti(data.Dataset):
 
 
 class DatasetAug(data.Dataset):
-    def __init__(self, image_dir, transform=None, transform_resize=None, transform_resize2=None, CAM=False):
+    def __init__(self, image_dir, transform=None, transform2=None, transform3=None, transform4=None, CAM=False):
         self.transform = transform
-        self.transform_resize = transform_resize
-        self.transform_resize2 = transform_resize2
+        self.transform2 = transform2
+        self.transform3 = transform3
+        self.transform4 = transform4
         classes, class_to_idx = find_classes(image_dir)
         self.data = make_dataset(image_dir, class_to_idx, IMG_EXTENSIONS, CAM)
         self.CAM = CAM
@@ -243,20 +261,41 @@ class DatasetAug(data.Dataset):
         else:
             path, pid, real_id = self.data[index]
         img = default_loader(path)
-        rand_index = random.randint(0, len(self.data)-1)
-        while rand_index == index:
-            rand_index = random.randint(0, len(self.data)-1)
-        img_negative_idx = rand_index
-        img_negative_path, _, _ = self.data[img_negative_idx]
-        img_negative = default_loader(img_negative_path)
-        img_normal = self.transform(img)
-        img_negative = self.transform(img_negative)
-        img_resize = self.transform_resize(img)
-        img_resize2 = self.transform_resize2(img)
-        return img_normal, img_resize, img_resize2, img_negative, pid, real_id
+        img1 = self.transform(img)
+        img1_pos = self.transform2(img)
+        img2 = self.transform3(img)
+        img2_pos = self.transform4(img)
+        return img1, img1_pos, img2, img2_pos, pid, real_id
 
     def __len__(self):
         return len(self.data)
+
+class DatasetAugThree(data.Dataset):
+    def __init__(self, image_dir, transform=None, transform2=None, transform3=None, transform4=None, CAM=False):
+        self.transform = transform
+        self.transform2 = transform2
+        self.transform3 = transform3
+        self.transform4 = transform4
+        classes, class_to_idx = find_classes(image_dir)
+        self.data = make_dataset(image_dir, class_to_idx, IMG_EXTENSIONS, CAM)
+        self.CAM = CAM
+
+    def __getitem__(self, index):
+        if self.CAM:
+            path, pid, real_id, cam = self.data[index]
+        else:
+            path, pid, real_id = self.data[index]
+        img = default_loader(path)
+        img_normal = self.transform(img)
+        img2 = self.transform2(img)
+        img3 = self.transform3(img)
+        img4 = self.transform4(img)
+        return img_normal, img2, img3, img4, pid, real_id
+
+    def __len__(self):
+        return len(self.data)
+
+
 
 class DatasetTriphard(data.Dataset):
     def __init__(self, image_dir, transform=None, transform_resize=None, CAM=False):

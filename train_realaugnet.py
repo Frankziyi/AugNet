@@ -12,21 +12,17 @@ import torchvision.models as models
 from utils.sampler import RandomIdentitySampler,RandomSampler
 from utils.Dataset import Dataset, DatasetTri, DatasetAug
 from utils.model import ft_fcnet
-from utils.resnet import remove_fc,remove_fc2
+from utils.resnet import remove_fc
 from utils.triphard import UnsupervisedTriphard
 from torch.nn.parallel import DataParallel
 import utils.my_transforms as my_transforms
 import torch.nn.functional as F
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
 
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--pretrained_path', type=str)
-parser.add_argument('--pretrained_path1', type=str)
-parser.add_argument('--pretrained_path2', type=str)
-parser.add_argument('--pretrained_epoch1', type=str)
-parser.add_argument('--pretrained_epoch2', type=str)
 parser.add_argument('--dataset_dir', type=str)
 parser.add_argument('--num_epochs', type=int, default=100)
 parser.add_argument('--lr_decay_epochs', type=int, default=40)
@@ -34,11 +30,12 @@ parser.add_argument('--model_save_dir', type=str)
 parser.add_argument('--img_h', type=int, default=256)
 parser.add_argument('--img_w', type=int, default=128)
 parser.add_argument('--batch_size', type=int, default=32)
-parser.add_argument('--change_epoch', type=int, default=2)
 
 parser.add_argument('--bilinear_interpolation', type=bool, default=True)
 parser.add_argument('--img_bi_h', type=int, default=576)
 parser.add_argument('--img_bi_w', type=int, default=192)
+parser.add_argument('--img_tri_h', type=int, default=768)
+parser.add_argument('--img_tri_w', type=int, default=256)
 parser.add_argument('--gaussian_blur', type=bool, default=True)
 parser.add_argument('--salt_and_pepper_noise', type=bool, default=True)
 parser.add_argument('--random_crop', type=bool, default=True)
@@ -51,40 +48,33 @@ args = parser.parse_args()
 
 image_dir = args.dataset_dir
 
-data_transform_model1 = transforms.Compose([
+data_transform = transforms.Compose([
     transforms.Resize((args.img_h, args.img_w)),
     #transforms.RandomHorizontalFlip(),
     transforms.ToTensor(), # range [0, 255] -> [0.0,1.0]
     transforms.Normalize(mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225])
     ])
 
-data_transform_model1_pos = transforms.Compose([
+data_transform_resize = transforms.Compose([
     #transforms.Resize((args.img_bi_h, args.img_bi_w)),
     transforms.RandomHorizontalFlip(p=0.5),
     transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
     transforms.RandomRotation(10),
     #transforms.RandomCrop(size=(384,128)),
     my_transforms.RandomCrop(range=(0.70,0.95)),
-    transforms.Resize((args.img_h, args.img_w)),
-    transforms.ToTensor(), # range [0, 255] -> [0.0,1.0]
-    transforms.Normalize(mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225])
-    ])
-
-data_transform_model2 = transforms.Compose([
     transforms.Resize((args.img_bi_h, args.img_bi_w)),
-    #transforms.RandomHorizontalFlip(),
     transforms.ToTensor(), # range [0, 255] -> [0.0,1.0]
     transforms.Normalize(mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225])
     ])
 
-data_transform_model2_pos = transforms.Compose([
+data_transform_resize2 = transforms.Compose([
     #transforms.Resize((args.img_tri_h, args.img_tri_w)),
     transforms.RandomHorizontalFlip(p=0.5),
     transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
     transforms.RandomRotation(10),
     #transforms.RandomCrop(size=(576,192)),
     my_transforms.RandomCrop(range=(0.70,0.95)),
-    transforms.Resize((args.img_bi_h, args.img_bi_w)),
+    transforms.Resize((args.img_tri_h, args.img_tri_w)),
     transforms.ToTensor(), # range [0, 255] -> [0.0,1.0]
     transforms.Normalize(mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225])
     ])
@@ -93,15 +83,13 @@ image_datasets = {}
 
 #image_datasets['train'] = datasets.ImageFolder(os.path.join(image_dir), data_transform)
 
-image_datasets['train'] = DatasetAug(image_dir, data_transform_model1, data_transform_model1_pos, data_transform_model2, data_transform_model2_pos)
+image_datasets['train'] = DatasetAug(image_dir, data_transform, data_transform_resize, data_transform_resize2)
 
 dataloaders = torch.utils.data.DataLoader(image_datasets['train'], batch_size=args.batch_size, shuffle=True, num_workers=8)
 
 dataset_sizes = len(image_datasets['train'])
 
 triplet_loss = UnsupervisedTriphard(margin=0.3)
-
-L2_loss = torch.nn.MSELoss(reduce=True, size_average=False)
 
 #triplet_loss = nn.TripletMarginLoss(margin=12.0)
 
@@ -114,13 +102,8 @@ def load_network(network):
     network.load_state_dict({'model.'+k:v for k, v in remove_fc(torch.load(save_path)).items()}, strict=False)
     return network
 
-def load_networkplus(network, path, epoch):
-    save_path = os.path.join(path, epoch)
-    network.load_state_dict({k.replace('module.', ''):v for k, v in remove_fc2(torch.load(save_path)).items()},strict=False)
-    return network
-
-model = load_networkplus(model, args.pretrained_path1, args.pretrained_epoch1)
-model2 = load_networkplus(model2, args.pretrained_path2, args.pretrained_epoch2)
+model = load_network(model)
+model2 = load_network(model2)
 #model3 = load_network(model3)
 
 optimizer_ft = optim.SGD(model.parameters(), lr = 0.0001, momentum=0.9, weight_decay=5e-4)
@@ -179,45 +162,34 @@ def train_model(model, optimizer, scheduler, optimizer2, scheduler2, num_epochs)
         running_corrects = 0
 
         for data in dataloaders:
-            inputs1, pos1, inputs2, pos2, _, _ = data
-            inputs1 = Variable(inputs1.float()).cuda()
-            pos1 = Variable(pos1.float()).cuda()
-            inputs2 = Variable(inputs2.float()).cuda()
-            pos2 = Variable(pos2.float()).cuda()
+            inputs, inputs_resize, inputs_resize2, neg, _, _ = data
+            inputs = Variable(inputs.float()).cuda()
+            inputs_resize = Variable(inputs_resize.float()).cuda()
+            inputs_resize2 = Variable(inputs_resize2.float()).cuda()
             #neg = Variable(neg.float()).cuda()
 
             optimizer.zero_grad()
             optimizer2.zero_grad()
-            anchor1 = model(inputs1)
-            pos1 = model(pos1)
+            anchor1 = model(inputs)
+            pos1 = model(inputs_resize)
             #neg1 = model(neg)
-            anchor2 = model2(inputs2)
-            pos2 = model2(pos2)
+            anchor2 = model2(inputs)
+            pos2 = model2(inputs_resize2)
             #neg2 = model2(neg)
             #anchor_l2 = F.pairwise_distance(anchor1, anchor2, p=2)
             loss1 = triplet_loss(anchor1, pos1)
             loss2 = triplet_loss(anchor2, pos2)
-            #pdb.set_trace()
-            l2_distance = L2_loss(pos1, pos2)
+            l2_distance = F.pairwise_distance(pos1, pos2, p=2).sum()
             aug_l2 = args.l2loss * l2_distance
             #pdb.set_trace()
             running_loss1 += loss1.data.item()
             running_loss2 += loss2.data.item()
             l2_loss += aug_l2.data.item()
-            #loss1.backward(retain_graph=True)
-            #loss2.backward(retain_graph=True)
-            #aug_l2.backward()
-            if epoch % (args.change_epoch * 2) < args.change_epoch:
-                total_loss = loss1 + aug_l2
-                total_loss.backward()
-                optimizer.step()
-            else:
-                total_loss = loss2 + aug_l2
-                total_loss.backward()
-                optimizer2.step()
-            #total_loss.backward()
-            #optimizer.step()
-            #optimizer2.step()
+            loss1.backward(retain_graph=True)
+            loss2.backward(retain_graph=True)
+            aug_l2.backward()
+            optimizer.step()
+            optimizer2.step()
             #pdb.set_trace()
 
         epoch_loss1 = running_loss1 / len(dataloaders)

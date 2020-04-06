@@ -10,12 +10,12 @@ from torch.autograd import Variable
 from torchvision import datasets, transforms
 import torchvision.models as models
 from utils.sampler import RandomIdentitySampler,RandomSampler
-from utils.Dataset import Dataset
+from utils.Dataset import Dataset, MSMT17
 from utils.model import ft_net
 from utils.utils import set_seed
 from torch.nn.parallel import DataParallel
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "6"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,2"
 
 parser = argparse.ArgumentParser()
 
@@ -42,13 +42,13 @@ image_datasets = {}
 
 #image_datasets['train'] = datasets.ImageFolder(os.path.join(image_dir), data_transform)
 
-image_datasets['train'] = Dataset(image_dir, data_transform)
+image_datasets['train'] = MSMT17(image_dir, data_transform)
 
 dataloaders = torch.utils.data.DataLoader(image_datasets['train'], batch_size=args.batch_size, shuffle=True, num_workers=4)
 
 dataset_sizes = len(image_datasets['train'])
 
-model = ft_net(751)
+model = ft_net(1401)
 
 optimizer_ft = optim.SGD(model.parameters(), lr = 0.01, momentum=0.9, weight_decay=5e-4)
 
@@ -87,7 +87,7 @@ def train_model(model, optimizer, scheduler, num_epochs):
             labels = Variable(labels).cuda()
             optimizer.zero_grad()
             features, outputs = model(inputs)
-            pdb.set_trace()
+            #pdb.set_trace()
             pred = torch.argmax(outputs, dim=1)
             loss = loss_function(outputs, labels)
             loss.backward()

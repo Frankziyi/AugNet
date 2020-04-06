@@ -1,8 +1,12 @@
 python multitest.py \
---gpu_ids='7' \
---test_dir='/home/ziyi/share/Market-1501-v15.09.15/' \
---namesmall='/home/ziyi/Desktop/augnet2/' \
---namelarge='/home/ziyi/Desktop/augnet2/' \
---which_epochsmall='34' \
---which_epochlarge='34' \
+--gpu_ids='0' \
+--test_dir='/home/share/ziyi/data/DukeMTMC-reID' \
+--namesmall='/home/ziyi/Desktop/dukesmallr3again' \
+--namelarge='/home/ziyi/Desktop/dukelarger3' \
+--which_epochsmall='99' \
+--which_epochlarge='99' \
 --batchsize='32' \
+--img_h='384' \
+--img_w='128' \
+--img_h2='576' \
+--img_w2='192'
