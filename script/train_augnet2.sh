@@ -1,11 +1,11 @@
-python train_augnet.py \
+python train_augnet2.py \
 --pretrained_path='/home/ziyi/Desktop' \
 --pretrained_path1='/home/ziyi/Desktop/MSMTmodel' \
 --pretrained_path2='/home/ziyi/Desktop/MSMTmodellarge' \
 --pretrained_epoch1='net_119.pth' \
 --pretrained_epoch2='net_139.pth' \
---dataset_dir='/home/share/ziyi/data/DukeMTMC-reID/bounding_box_train/' \
---model_save_dir='/home/ziyi/Desktop/lianhexunlianpostogetherduke/' \
+--dataset_dir='/home/ziyi/share/Market-1501-v15.09.15/bounding_box_train/' \
+--model_save_dir='/home/ziyi/Desktop/lianhexunlianpostogethermarketr2/' \
 --batch_size=16 \
 --img_h=384 \
 --img_w=128 \

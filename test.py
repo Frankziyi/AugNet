@@ -123,11 +123,11 @@ use_gpu = torch.cuda.is_available()
 # Load model
 #---------------------------
 def load_network(network):
-    save_path = os.path.join(name,'net_%s.pth'%opt.which_epoch)
-    #save_path = os.path.join(name,'net2_%s.pth'%opt.which_epoch)
+    #save_path = os.path.join(name,'net1_%s.pth'%opt.which_epoch)
+    save_path = os.path.join(name,'net2_%s.pth'%opt.which_epoch)
     #save_path = os.path.join(name, 'pretrained_weight.pth')
     #pdb.set_trace()
-    network.load_state_dict({k.replace('module.',''):v for k,v in torch.load(save_path).items()},strict=False)
+    network.load_state_dict({k.replace('module.',''):v for k,v in torch.load(save_path).items()}, strict=True)
     #network.load_state_dict({'model.'+ k : v for k, v in remove_fc(torch.load(save_path)).items()}, strict=False)
     return network
 

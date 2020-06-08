@@ -13,12 +13,12 @@ from utils.sampler import RandomIdentitySampler,RandomSampler
 from utils.Dataset import Dataset, DatasetTri, DatasetAug
 from utils.model import ft_fcnet
 from utils.resnet import remove_fc,remove_fc2
-from utils.triphard import UnsupervisedTriphard
+from utils.triphard2 import UnsupervisedTriphard
 from torch.nn.parallel import DataParallel
 import utils.my_transforms as my_transforms
 import torch.nn.functional as F
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,5"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
 
 parser = argparse.ArgumentParser()
 

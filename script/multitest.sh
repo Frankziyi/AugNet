@@ -1,6 +1,6 @@
 python multitest.py \
---gpu_ids='0' \
---test_dir='/home/share/ziyi/data/DukeMTMC-reID' \
+--gpu_ids='1' \
+--test_dir='/home/share/ziyi/data/DukeMTMC-reID/' \
 --namesmall='/home/ziyi/Desktop/dukesmallr3again' \
 --namelarge='/home/ziyi/Desktop/dukelarger3' \
 --which_epochsmall='99' \

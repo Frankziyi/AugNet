@@ -179,8 +179,8 @@ def extract_feature(model1, model2, dataloaders):
         n, c, h, w = img1.size()
         count += n
         print(count)
-        #ff = torch.FloatTensor(n,4096).zero_().cuda()
-        ff = torch.FloatTensor(n,2048).zero_().cuda()
+        ff = torch.FloatTensor(n,4096).zero_().cuda()
+        #ff = torch.FloatTensor(n,2048).zero_().cuda()
 
         for i in range(2):
             if(i==1):
@@ -192,8 +192,8 @@ def extract_feature(model1, model2, dataloaders):
             #ff += outputs1
             outputs2 = model2(input_img2)
             #ff += outputs2
-            #ff_temp = torch.cat([outputs1, outputs2], 1)
-            ff_temp = 0.5 * outputs1 + 0.5 * outputs2
+            ff_temp = torch.cat([outputs1, outputs2], 1)
+            #ff_temp = 0.5 * outputs1 + 0.5 * outputs2
             ff += ff_temp
         # norm feature
         '''
@@ -215,23 +215,26 @@ def extract_feature(model1, model2, dataloaders):
 def get_id(img_path):
     camera_id = []
     labels = []
+    paths = []
     for path, v, q in img_path:
         #filename = path.split('/')[-1]
         filename = os.path.basename(path)
         label = filename[0:4]
         camera = filename.split('c')[1]
         if label[0:2]=='-1':
-            labels.append(-1)
+            continue
+            #labels.append(-1)
         else:
             labels.append(int(label))
         camera_id.append(int(camera[0]))
-    return camera_id, labels
+        paths.append(path)
+    return camera_id, labels, paths
 
 gallery_path = image_datasets['gallery'].data
 query_path = image_datasets['query'].data
 
-gallery_cam,gallery_label = get_id(gallery_path)
-query_cam,query_label = get_id(query_path)
+gallery_cam,gallery_label,gallery_path = get_id(gallery_path)
+query_cam,query_label,query_path = get_id(query_path)
 
 if opt.multi:
     mquery_path = image_datasets['multi-query'].imgs
@@ -285,10 +288,10 @@ with torch.no_grad():
         mquery_feature = extract_feature(model,dataloaders['multi-query'])
     
 # Save to Matlab for check
-result = {'gallery_f':gallery_feature.numpy(),'gallery_label':gallery_label,'gallery_cam':gallery_cam,'query_f':query_feature.numpy(),'query_label':query_label,'query_cam':query_cam}
-scipy.io.savemat('pytorch_result.mat',result)
+result = {'gallery_f':gallery_feature.numpy(),'gallery_label':gallery_label,'gallery_cam':gallery_cam,'query_f':query_feature.numpy(),'query_label':query_label,'query_cam':query_cam, 'gallery_path':gallery_path, 'query_path':query_path}
+scipy.io.savemat('pytorch_result_duke.mat',result)
 
-res_save_path = '/home/ziyi/Desktop/tempres'
+res_save_path = '/home/ziyi/Desktop/lasttest'
 print(res_save_path) # where the result save
 
 #result = '%s/result.txt'%opt.namesmall

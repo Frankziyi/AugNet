@@ -46,10 +46,12 @@ def make_dataset(dir, class_to_idx, extensions, CAM=False):
                         item = (path, class_to_idx[target], int(target), int(cam))
                     else:
                         if target == '-1_c':
+                            continue
                             item = (path, -1, -1)
                         else:
                             item = (path, class_to_idx[target], int(target))
-                    images.append(item)
+                    if target != '-1_c':
+                        images.append(item)
 
     return images
 
@@ -183,10 +185,7 @@ class DatasetTri(data.Dataset):
         self.CAM = CAM
 
     def __getitem__(self, index):
-        if self.CAM:
-            path, pid, real_id, cam = self.data[index]
-        else:
-            path, pid, real_id = self.data[index]
+        path, pid, real_id = self.data[index]
         img = default_loader(path)
         rand_index = random.randint(0, len(self.data)-1)
         while rand_index == index:
@@ -203,7 +202,7 @@ class DatasetTri(data.Dataset):
             return img_normal, pid, real_id, cam
         else:
             if self.transform_resize is not None:
-                return img_normal, img_resize, img_negative, pid, real_id
+                return img_normal, img_resize, path, pid, real_id
             else:
                 return img_normal, pid, real_id
 
